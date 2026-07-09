@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Стрім 24 години</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@700;800;900&family=Russo+One&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flipclock/0.7.8/flipclock.css" />
+
+  <style>
+    :root {
+      --brand: #ff9800;
+      --txt: #ffffff;
+      --panel-bg: rgba(120, 120, 120, 0.82);
+      --timer-dots: #d6d6d6;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      min-height: 100vh;
+      background: transparent !important;
+      overflow: hidden;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: var(--txt);
+      padding: 20px;
+    }
+
+    .timer-block {
+      width: 660px;
+      background: var(--panel-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-radius: 28px;
+      padding: 26px 24px 28px;
+      border: 1px solid rgba(255,255,255,.09);
+      box-shadow: 0 25px 45px rgba(0,0,0,.28);
+      text-align: center;
+    }
+
+    .timer-title {
+      font-family: 'Russo One', sans-serif;
+      font-size: 40px;
+      font-weight: 400;
+      letter-spacing: 1px;
+      color: var(--brand);
+      text-transform: uppercase;
+      line-height: 1.05;
+      margin-bottom: 10px;
+      text-shadow: 0 2px 0 rgba(0,0,0,.12);
+    }
+
+    .timer-title .title-number {
+      font-size: 2.38em;
+      line-height: 0.8;
+      display: inline-block;
+      margin: 0 4px;
+      vertical-align: middle;
+    }
+
+    .timer-subtitle {
+      font-size: 26px;
+      font-weight: 900;
+      letter-spacing: 0.5px;
+      color: #f7e4d7;
+      margin-bottom: 18px;
+      line-height: 1.2;
+    }
+
+    .timer-flip {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-bottom: 22px;
+    }
+
+    .timer-block.expired .timer-flip {
+      display: none;
+    }
+
+    .timer-expired {
+      display: none;
+      justify-content: center;
+      align-items: center;
+      min-height: 120px;
+      background: rgba(0,0,0,.15);
+      border: 2px solid var(--brand);
+      border-radius: 14px;
+      padding: 20px 24px;
+      font-size: 48px;
+      font-weight: 900;
+      color: var(--brand);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      line-height: 1;
+      margin-bottom: 22px;
+    }
+
+    .timer-block.expired .timer-expired {
+      display: flex;
+    }
+
+    .timer-block.running .start-btn {
+      display: none;
+    }
+
+    .start-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: none;
+      outline: none;
+      cursor: pointer;
+      background: linear-gradient(180deg, #ffb13b, #ff8400);
+      color: #111;
+      font-size: 28px;
+      font-weight: 900;
+      letter-spacing: 2px;
+      padding: 16px 54px;
+      border-radius: 999px;
+      text-transform: uppercase;
+      box-shadow: 0 10px 22px rgba(255, 120, 0, 0.35);
+      transition: 0.15s ease;
+    }
+
+    .start-btn:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.08);
+    }
+
+    .start-btn:active {
+      transform: translateY(1px) scale(0.98);
+    }
+
+    /* ===== FLIPCLOCK ===== */
+
+    .timer-flip .flip-clock-wrapper {
+      background: rgba(0,0,0,.14);
+      border: 2px solid var(--brand);
+      border-radius: 12px;
+      display: inline-block;
+      width: fit-content;
+      margin: 0 auto;
+      padding: 10px 12px 4px;
+    }
+
+    .timer-flip .flip-clock-wrapper ul {
+      position: relative;
+      width: 72px;
+      height: 98px;
+      margin: 4px;
+      border-radius: 10px;
+      background: #111;
+      box-shadow: 0 5px 10px rgba(0,0,0,.45);
+      overflow: hidden;
+    }
+
+    /* прибираємо зайві лінії, які дублювали центральну риску */
+    .timer-flip .flip-clock-wrapper ul::before,
+    .timer-flip .flip-clock-wrapper ul::after {
+      display: none !important;
+      content: none !important;
+    }
+
+    .timer-flip .flip-clock-wrapper ul li {
+      line-height: 98px;
+    }
+
+    .timer-flip .flip-clock-wrapper ul li a div {
+      font-size: 98px;
+    }
+
+    .timer-flip .flip-clock-wrapper ul li a div div.inn {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 98px;
+      font-weight: 700;
+      color: #ddd;
+      background: linear-gradient(to bottom, #393939 0%, #252525 100%);
+      text-shadow: none;
+      border-radius: 8px;
+    }
+
+    /* залишаємо тільки одну нормальну лінію перегину */
+    .timer-flip .flip-clock-wrapper ul li a div.up:after {
+      top: auto !important;
+      bottom: 0 !important;
+      height: 2px !important;
+      background: rgba(0, 0, 0, 0.65) !important;
+    }
+
+    /* прибираємо зайві тіні FlipClock, які давали додаткові риски */
+    .timer-flip .flip-clock-wrapper ul li a div .shadow {
+      display: none !important;
+    }
+
+    .timer-flip .flip-clock-divider {
+      width: 24px;
+      height: 108px;
+    }
+
+    .timer-flip .flip-clock-dot {
+      width: 10px;
+      height: 10px;
+      left: 7px;
+      background: var(--timer-dots);
+      box-shadow: none;
+    }
+
+    .timer-flip .flip-clock-divider .flip-clock-label {
+      display: none;
+    }
+
+    @media (max-width: 820px) {
+      .timer-block {
+        width: 95vw;
+        padding: 22px 16px 24px;
+      }
+
+      .timer-title {
+        font-size: 30px;
+      }
+
+      .timer-subtitle {
+        font-size: 21px;
+      }
+
+      .timer-flip .flip-clock-wrapper ul {
+        width: 58px;
+        height: 82px;
+        margin: 3px;
+      }
+
+      .timer-flip .flip-clock-wrapper ul li {
+        line-height: 82px;
+      }
+
+      .timer-flip .flip-clock-wrapper ul li a div,
+      .timer-flip .flip-clock-wrapper ul li a div div.inn {
+        font-size: 82px;
+      }
+
+      .timer-flip .flip-clock-divider {
+        width: 18px;
+        height: 92px;
+      }
+
+      .timer-flip .flip-clock-dot {
+        width: 8px;
+        height: 8px;
+        left: 5px;
+      }
+
+      .start-btn {
+        font-size: 22px;
+        padding: 13px 42px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="timer-block" id="timerBlock">
+    <div class="timer-title">
+      Стрім <span class="title-number">24</span> години
+    </div>
+
+    <div class="timer-subtitle">До кінця стріму залишилось:</div>
+
+    <div class="timer-flip">
+      <div id="flip-clock"></div>
+    </div>
+
+    <div class="timer-expired">Час вийшов</div>
+
+    <button class="start-btn" id="startBtn">Старт</button>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/flipclock/0.7.8/flipclock.min.js"></script>
+
+  <script>
+    const TIMER_DURATION = 24 * 60 * 60;
+    const STORAGE_KEY = "stream_24h_timer_end_v5";
+
+    const timerBlock = document.getElementById("timerBlock");
+    const startBtn = document.getElementById("startBtn");
+
+    let flipTimerClock = null;
+    let timerInterval = null;
+    let endTime = null;
+
+    function getSecondsLeft() {
+      if (!endTime) return TIMER_DURATION;
+      const secondsLeft = Math.ceil((endTime - Date.now()) / 1000);
+      return Math.max(0, secondsLeft);
+    }
+
+    function destroyClock() {
+      if (flipTimerClock && typeof flipTimerClock.stop === "function") {
+        flipTimerClock.stop();
+      }
+
+      flipTimerClock = null;
+
+      const clockEl = document.getElementById("flip-clock");
+      if (clockEl) {
+        clockEl.innerHTML = "";
+      }
+    }
+
+    function createClock(seconds, autoStart) {
+      destroyClock();
+
+      flipTimerClock = $("#flip-clock").FlipClock(seconds, {
+        clockFace: "HourlyCounter",
+        countdown: true,
+        autoStart: autoStart
+      });
+    }
+
+    function finishTimer() {
+      clearInterval(timerInterval);
+      timerInterval = null;
+
+      localStorage.removeItem(STORAGE_KEY);
+
+      timerBlock.classList.remove("running");
+      timerBlock.classList.add("expired");
+
+      destroyClock();
+      createClock(0, false);
+    }
+
+    function syncTimer() {
+      const left = getSecondsLeft();
+
+      if (left <= 0) {
+        finishTimer();
+        return;
+      }
+
+      if (flipTimerClock) {
+        flipTimerClock.setTime(left);
+      }
+    }
+
+    function startTimer() {
+      clearInterval(timerInterval);
+
+      endTime = Date.now() + TIMER_DURATION * 1000;
+      localStorage.setItem(STORAGE_KEY, String(endTime));
+
+      timerBlock.classList.remove("expired");
+      timerBlock.classList.add("running");
+
+      createClock(TIMER_DURATION, true);
+
+      timerInterval = setInterval(syncTimer, 1000);
+    }
+
+    function resetTimer() {
+      clearInterval(timerInterval);
+      timerInterval = null;
+
+      endTime = null;
+      localStorage.removeItem(STORAGE_KEY);
+
+      timerBlock.classList.remove("running");
+      timerBlock.classList.remove("expired");
+
+      createClock(TIMER_DURATION, false);
+    }
+
+    function restoreTimer() {
+      const savedEnd = Number(localStorage.getItem(STORAGE_KEY));
+
+      if (savedEnd && savedEnd > Date.now()) {
+        endTime = savedEnd;
+
+        timerBlock.classList.remove("expired");
+        timerBlock.classList.add("running");
+
+        createClock(getSecondsLeft(), true);
+        timerInterval = setInterval(syncTimer, 1000);
+      } else {
+        resetTimer();
+      }
+    }
+
+    startBtn.addEventListener("click", startTimer);
+
+    document.addEventListener("keydown", function(e) {
+      if (e.key.toLowerCase() === "r") {
+        resetTimer();
+      }
+    });
+
+    restoreTimer();
+  </script>
+
+</body>
+</html>
