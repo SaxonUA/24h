@@ -348,31 +348,64 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/flipclock/0.7.8/flipclock.min.js"></script>
 
   <script>
+    /*
+      Фіксований час за Києвом:
+
+      Початок: 10.07.2026 о 21:00
+      Кінець:   11.07.2026 о 21:00
+
+      У липні Київ перебуває в часовому поясі UTC+3.
+      Тому 21:00 за Києвом відповідає 18:00 UTC.
+    */
+
     const TIMER_DURATION = 24 * 60 * 60;
-    const STORAGE_KEY = "stream_24h_timer_end_v8";
+
+    const START_TIME = Date.UTC(2026, 6, 10, 18, 0, 0);
+    const END_TIME = Date.UTC(2026, 6, 11, 18, 0, 0);
 
     const timerBlock = document.getElementById("timerBlock");
-    const startBtn = document.getElementById("startBtn");
 
     let flipTimerClock = null;
     let timerInterval = null;
-    let endTime = null;
 
-    function getSecondsLeft() {
-      if (!endTime) return TIMER_DURATION;
+    function getTimerState() {
+      const now = Date.now();
 
-      const secondsLeft = Math.ceil((endTime - Date.now()) / 1000);
-      return Math.max(0, secondsLeft);
+      if (now < START_TIME) {
+        return {
+          status: "waiting",
+          seconds: TIMER_DURATION
+        };
+      }
+
+      if (now >= END_TIME) {
+        return {
+          status: "expired",
+          seconds: 0
+        };
+      }
+
+      return {
+        status: "running",
+        seconds: Math.max(
+          0,
+          Math.ceil((END_TIME - now) / 1000)
+        )
+      };
     }
 
     function destroyClock() {
-      if (flipTimerClock && typeof flipTimerClock.stop === "function") {
+      if (
+        flipTimerClock &&
+        typeof flipTimerClock.stop === "function"
+      ) {
         flipTimerClock.stop();
       }
 
       flipTimerClock = null;
 
       const clockEl = document.getElementById("flip-clock");
+
       if (clockEl) {
         clockEl.innerHTML = "";
       }
@@ -388,84 +421,87 @@
       });
     }
 
-    function finishTimer() {
-      clearInterval(timerInterval);
-      timerInterval = null;
+    function showWaiting() {
+      timerBlock.classList.add("running");
+      timerBlock.classList.remove("expired");
 
-      localStorage.removeItem(STORAGE_KEY);
+      if (!flipTimerClock) {
+        createClock(TIMER_DURATION, false);
+      }
 
-      timerBlock.classList.remove("running");
-      timerBlock.classList.add("expired");
+      flipTimerClock.setTime(TIMER_DURATION);
 
-      destroyClock();
-      createClock(0, false);
+      if (typeof flipTimerClock.stop === "function") {
+        flipTimerClock.stop();
+      }
     }
 
-    function syncTimer() {
-      const left = getSecondsLeft();
+    function showRunning(seconds) {
+      timerBlock.classList.add("running");
+      timerBlock.classList.remove("expired");
 
-      if (left <= 0) {
-        finishTimer();
+      if (!flipTimerClock) {
+        createClock(seconds, true);
         return;
       }
 
-      if (flipTimerClock) {
-        flipTimerClock.setTime(left);
+      flipTimerClock.setTime(seconds);
+
+      if (
+        typeof flipTimerClock.start === "function" &&
+        flipTimerClock.running === false
+      ) {
+        flipTimerClock.start();
       }
     }
 
-    function startTimer() {
-      clearInterval(timerInterval);
-
-      endTime = Date.now() + TIMER_DURATION * 1000;
-      localStorage.setItem(STORAGE_KEY, String(endTime));
-
-      timerBlock.classList.remove("expired");
+    function showExpired() {
       timerBlock.classList.add("running");
+      timerBlock.classList.add("expired");
 
-      createClock(TIMER_DURATION, true);
+      if (
+        flipTimerClock &&
+        typeof flipTimerClock.stop === "function"
+      ) {
+        flipTimerClock.stop();
+      }
 
-      timerInterval = setInterval(syncTimer, 1000);
-    }
-
-    function resetTimer() {
       clearInterval(timerInterval);
       timerInterval = null;
-
-      endTime = null;
-      localStorage.removeItem(STORAGE_KEY);
-
-      timerBlock.classList.remove("running");
-      timerBlock.classList.remove("expired");
-
-      createClock(TIMER_DURATION, false);
     }
 
-    function restoreTimer() {
-      const savedEnd = Number(localStorage.getItem(STORAGE_KEY));
+    function syncTimer() {
+      const state = getTimerState();
 
-      if (savedEnd && savedEnd > Date.now()) {
-        endTime = savedEnd;
-
-        timerBlock.classList.remove("expired");
-        timerBlock.classList.add("running");
-
-        createClock(getSecondsLeft(), true);
-        timerInterval = setInterval(syncTimer, 1000);
-      } else {
-        resetTimer();
+      if (state.status === "waiting") {
+        showWaiting();
+        return;
       }
+
+      if (state.status === "running") {
+        showRunning(state.seconds);
+        return;
+      }
+
+      showExpired();
     }
 
-    startBtn.addEventListener("click", startTimer);
+    $(function () {
+      const initialState = getTimerState();
 
-    document.addEventListener("keydown", function(e) {
-      if (e.key.toLowerCase() === "r") {
-        resetTimer();
+      timerBlock.classList.add("running");
+
+      createClock(
+        initialState.seconds,
+        initialState.status === "running"
+      );
+
+      syncTimer();
+
+      if (initialState.status !== "expired") {
+        timerInterval = setInterval(syncTimer, 1000);
       }
     });
-
-    restoreTimer();
   </script>
 
 </body>
