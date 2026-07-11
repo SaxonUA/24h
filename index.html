@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Стрім 24 години</title>
+  <title>Стрім 6 годин</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -330,7 +330,7 @@
 
   <div class="timer-block" id="timerBlock">
     <div class="timer-title">
-      Стрім <span class="title-number">24</span> години
+      Стрім <span class="title-number">6</span> годин
     </div>
 
     <div class="timer-subtitle">До кінця стріму залишилось:</div>
@@ -348,50 +348,24 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/flipclock/0.7.8/flipclock.min.js"></script>
 
   <script>
-    /*
-      Фіксований час за Києвом:
-
-      Початок: 10.07.2026 о 21:00
-      Кінець:   11.07.2026 о 21:00
-
-      У липні Київ перебуває в часовому поясі UTC+3.
-      Тому 21:00 за Києвом відповідає 18:00 UTC.
-    */
-
-    const TIMER_DURATION = 24 * 60 * 60;
-
-    const START_TIME = Date.UTC(2026, 6, 10, 18, 0, 0);
-    const END_TIME = Date.UTC(2026, 6, 11, 18, 0, 0);
+    const TIMER_DURATION = 6 * 60 * 60;
+    const STORAGE_KEY = "stream_6h_timer_end_v1";
 
     const timerBlock = document.getElementById("timerBlock");
+    const startBtn = document.getElementById("startBtn");
 
     let flipTimerClock = null;
     let timerInterval = null;
+    let endTime = null;
 
-    function getTimerState() {
-      const now = Date.now();
-
-      if (now < START_TIME) {
-        return {
-          status: "waiting",
-          seconds: TIMER_DURATION
-        };
+    function getSecondsLeft() {
+      if (!endTime) {
+        return TIMER_DURATION;
       }
 
-      if (now >= END_TIME) {
-        return {
-          status: "expired",
-          seconds: 0
-        };
-      }
+      const secondsLeft = Math.ceil((endTime - Date.now()) / 1000);
 
-      return {
-        status: "running",
-        seconds: Math.max(
-          0,
-          Math.ceil((END_TIME - now) / 1000)
-        )
-      };
+      return Math.max(0, secondsLeft);
     }
 
     function destroyClock() {
@@ -404,10 +378,10 @@
 
       flipTimerClock = null;
 
-      const clockEl = document.getElementById("flip-clock");
+      const clockElement = document.getElementById("flip-clock");
 
-      if (clockEl) {
-        clockEl.innerHTML = "";
+      if (clockElement) {
+        clockElement.innerHTML = "";
       }
     }
 
@@ -421,42 +395,14 @@
       });
     }
 
-    function showWaiting() {
-      timerBlock.classList.add("running");
-      timerBlock.classList.remove("expired");
+    function finishTimer() {
+      clearInterval(timerInterval);
+      timerInterval = null;
 
-      if (!flipTimerClock) {
-        createClock(TIMER_DURATION, false);
-      }
+      endTime = null;
+      localStorage.removeItem(STORAGE_KEY);
 
-      flipTimerClock.setTime(TIMER_DURATION);
-
-      if (typeof flipTimerClock.stop === "function") {
-        flipTimerClock.stop();
-      }
-    }
-
-    function showRunning(seconds) {
-      timerBlock.classList.add("running");
-      timerBlock.classList.remove("expired");
-
-      if (!flipTimerClock) {
-        createClock(seconds, true);
-        return;
-      }
-
-      flipTimerClock.setTime(seconds);
-
-      if (
-        typeof flipTimerClock.start === "function" &&
-        flipTimerClock.running === false
-      ) {
-        flipTimerClock.start();
-      }
-    }
-
-    function showExpired() {
-      timerBlock.classList.add("running");
+      timerBlock.classList.remove("running");
       timerBlock.classList.add("expired");
 
       if (
@@ -465,43 +411,81 @@
       ) {
         flipTimerClock.stop();
       }
-
-      clearInterval(timerInterval);
-      timerInterval = null;
     }
 
     function syncTimer() {
-      const state = getTimerState();
+      const secondsLeft = getSecondsLeft();
 
-      if (state.status === "waiting") {
-        showWaiting();
+      if (secondsLeft <= 0) {
+        finishTimer();
         return;
       }
 
-      if (state.status === "running") {
-        showRunning(state.seconds);
-        return;
+      if (flipTimerClock) {
+        flipTimerClock.setTime(secondsLeft);
       }
-
-      showExpired();
     }
 
-    $(function () {
-      const initialState = getTimerState();
+    function startTimer() {
+      clearInterval(timerInterval);
 
-      timerBlock.classList.add("running");
+      endTime = Date.now() + TIMER_DURATION * 1000;
 
-      createClock(
-        initialState.seconds,
-        initialState.status === "running"
+      localStorage.setItem(
+        STORAGE_KEY,
+        String(endTime)
       );
 
-      syncTimer();
+      timerBlock.classList.remove("expired");
+      timerBlock.classList.add("running");
 
-      if (initialState.status !== "expired") {
+      createClock(TIMER_DURATION, true);
+
+      timerInterval = setInterval(syncTimer, 1000);
+    }
+
+    function resetTimer() {
+      clearInterval(timerInterval);
+      timerInterval = null;
+
+      endTime = null;
+
+      localStorage.removeItem(STORAGE_KEY);
+
+      timerBlock.classList.remove("running");
+      timerBlock.classList.remove("expired");
+
+      createClock(TIMER_DURATION, false);
+    }
+
+    function restoreTimer() {
+      const savedEndTime = Number(
+        localStorage.getItem(STORAGE_KEY)
+      );
+
+      if (savedEndTime && savedEndTime > Date.now()) {
+        endTime = savedEndTime;
+
+        timerBlock.classList.remove("expired");
+        timerBlock.classList.add("running");
+
+        createClock(getSecondsLeft(), true);
+
         timerInterval = setInterval(syncTimer, 1000);
+      } else {
+        resetTimer();
+      }
+    }
+
+    startBtn.addEventListener("click", startTimer);
+
+    document.addEventListener("keydown", function(event) {
+      if (event.key.toLowerCase() === "r") {
+        resetTimer();
       }
     });
+
+    restoreTimer();
   </script>
 
 </body>
